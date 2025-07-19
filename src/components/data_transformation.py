@@ -43,7 +43,7 @@ class DataTransformation:
                 ("one_hot_encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
             ])
 
-            # Column transformer
+            # Combined column transformer
             preprocessor = ColumnTransformer(
                 transformers=[
                     ("num", num_pipeline, numerical_columns),
@@ -59,33 +59,39 @@ class DataTransformation:
 
     def initiate_data_transformation(self, train_path, test_path):
         try:
+            logging.info("Reading training and test data")
             train_df = pd.read_csv(train_path)
             test_df = pd.read_csv(test_path)
 
-            logging.info("Read train and test data successfully.")
-
-            # Drop rows with missing or invalid values if any
+            # Clean and validate both datasets
+            logging.info("Cleaning train and test datasets")
+            cleaned_dfs = []
             for df in [train_df, test_df]:
                 df.dropna(subset=["Quantity", "UnitPrice", "Country", "CLV"], inplace=True)
                 df = df[df["Quantity"] > 0]
+                cleaned_dfs.append(df)
 
+            train_df, test_df = cleaned_dfs
+
+            # Initialize preprocessor
             preprocessing_obj = self.get_data_transformer_object()
-
             target_column = "CLV"
 
-            # Input/Target split
             input_feature_train_df = train_df.drop(columns=[target_column])
             target_feature_train_df = train_df[target_column]
 
             input_feature_test_df = test_df.drop(columns=[target_column])
             target_feature_test_df = test_df[target_column]
 
-            logging.info("Applying preprocessing pipelines")
-
+            # Fit and transform
+            logging.info("Fitting and transforming data")
             input_feature_train_arr = preprocessing_obj.fit_transform(input_feature_train_df)
             input_feature_test_arr = preprocessing_obj.transform(input_feature_test_df)
 
-            # Combine with target values
+            logging.info(f"Transformed train shape: {input_feature_train_arr.shape}")
+            logging.info(f"Transformed test shape: {input_feature_test_arr.shape}")
+
+            # Concatenate target
             train_arr = np.c_[input_feature_train_arr, np.array(target_feature_train_df)]
             test_arr = np.c_[input_feature_test_arr, np.array(target_feature_test_df)]
 
@@ -95,7 +101,7 @@ class DataTransformation:
                 obj=preprocessing_obj
             )
 
-            logging.info("Preprocessing object saved and transformation completed")
+            logging.info("Preprocessor saved to artifacts/preprocessor.pkl")
 
             return (
                 train_arr,
@@ -106,7 +112,7 @@ class DataTransformation:
         except Exception as e:
             raise CustomException(e, sys)
 
-# Optional: test run
+# Optional: test run directly
 if __name__ == "__main__":
     transformer = DataTransformation()
     transformer.initiate_data_transformation("artifacts/train.csv", "artifacts/test.csv")

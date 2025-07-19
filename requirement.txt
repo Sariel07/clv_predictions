@@ -1,6 +1,12 @@
-numpy
 pandas
-matplotlib
+numpy
 scikit-learn
 dill
+joblib
+lightgbm
+xgboost
+matplotlib
 seaborn
+tqdm
+loguru
+gradio
